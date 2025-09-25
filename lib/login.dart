@@ -1,7 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:roadify/page1.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+// A simple placeholder for Page1 to demonstrate passing the role
+class Page1 extends StatelessWidget {
+  final String role;
+  const Page1({super.key, required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Home Page"),
+        backgroundColor: const Color.fromARGB(255, 255, 123, 0),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Welcome!",
+              style: GoogleFonts.manrope(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "You are logged in with the role: $role",
+              style: GoogleFonts.manrope(
+                fontSize: 18,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (context.mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const Login()),
+                  );
+                }
+              },
+              child: const Text("Logout"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -11,52 +63,65 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
-  // Global key to validate the form
   final _formKey = GlobalKey<FormState>();
 
-  // Text editing controllers
   final emailtextcontroller = TextEditingController();
   final passtextcontroller = TextEditingController();
+  final List<String> _roles = ['Local', 'Higher Authorities'];
+  String? _selectedRole;
 
-  // Firebase instance
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  // State for loading indicator
+  final _database = FirebaseDatabase.instance.ref();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    // Clean up the controllers when the widget is disposed.
     emailtextcontroller.dispose();
     passtextcontroller.dispose();
     super.dispose();
   }
 
-  // --- Login Logic ---
   void _loginUser() async {
-    // Validate the form first
     if (_formKey.currentState!.validate()) {
       setState(() {
-        _isLoading = true; // Show loading indicator
+        _isLoading = true;
       });
 
       try {
-        // Sign in user with email and password
-        await _auth.signInWithEmailAndPassword(
+        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: emailtextcontroller.text.trim(),
           password: passtextcontroller.text.trim(),
         );
 
-        // If login is successful, navigate to the home screen
-        // Using pushReplacement to prevent user from going back to the login screen
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const Page1()),
-          );
+        User? user = userCredential.user;
+        if (user != null) {
+          final DataSnapshot snapshot = await _database
+              .child('users')
+              .child(user.uid)
+              .child('role')
+              .get();
+
+          String storedRole = '';
+          if (snapshot.exists) {
+            storedRole = snapshot.value.toString();
+          }
+
+          if (_selectedRole?.toLowerCase() == storedRole.toLowerCase()) {
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => Page1(role: storedRole),
+                ),
+              );
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Incorrect role selected.")),
+            );
+          }
         }
       } on FirebaseAuthException catch (e) {
-        // Handle specific Firebase errors by showing the exact message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -65,12 +130,10 @@ class _LoginState extends State<Login> {
           ),
         );
       } catch (e) {
-        // Handle other unexpected errors
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('An unexpected error occurred: $e')),
         );
       } finally {
-        // Hide loading indicator
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -96,22 +159,14 @@ class _LoginState extends State<Login> {
                     children: [
                       IconButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const Page1(),
-                            ),
-                          );
+                          Navigator.pop(context);
                         },
                         icon: const Icon(Icons.arrow_back),
                       ),
                     ],
                   ),
-
                   Image.asset("images/logo.png", height: 150),
-
                   const SizedBox(height: 10),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 15.0),
                     child: Column(
@@ -124,7 +179,6 @@ class _LoginState extends State<Login> {
                             color: const Color.fromARGB(255, 255, 123, 0),
                           ),
                         ),
-
                         const SizedBox(height: 5),
                         Text(
                           "Enter your details to login",
@@ -134,9 +188,7 @@ class _LoginState extends State<Login> {
                             color: const Color.fromARGB(255, 0, 0, 0),
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         TextFormField(
                           controller: emailtextcontroller,
                           decoration: const InputDecoration(
@@ -151,9 +203,7 @@ class _LoginState extends State<Login> {
                             return null;
                           },
                         ),
-
                         const SizedBox(height: 8),
-
                         TextFormField(
                           controller: passtextcontroller,
                           decoration: const InputDecoration(
@@ -169,9 +219,31 @@ class _LoginState extends State<Login> {
                             return null;
                           },
                         ),
-
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          dropdownColor: Colors.orange[300],
+                          focusColor: Colors.orange[200],
+                          decoration: const InputDecoration(
+                            hintText: 'Select Role',
+                            prefixIcon: Icon(Icons.person_search),
+                          ),
+                          value:
+                              _selectedRole, // Use 'value' instead of 'initialValue'
+                          items: _roles
+                              .map(
+                                (role) => DropdownMenuItem<String>(
+                                  value: role,
+                                  child: Text(role),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (newValue) =>
+                              setState(() => _selectedRole = newValue),
+                          validator: (value) => (value == null || value.isEmpty)
+                              ? 'Please select a role'
+                              : null,
+                        ),
                         const SizedBox(height: 10),
-
                         _isLoading
                             ? const CircularProgressIndicator()
                             : ElevatedButton(

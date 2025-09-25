@@ -212,6 +212,7 @@ class _RegistrationState extends State<Registration> {
                           "CREATE ACCOUNT",
                           style: GoogleFonts.manrope(
                             fontWeight: FontWeight.w800,
+
                             fontSize: 20,
                             color: const Color.fromARGB(255, 255, 123, 0),
                           ),
@@ -248,6 +249,8 @@ class _RegistrationState extends State<Registration> {
                         ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
+                          dropdownColor: Colors.orange[300],
+                          focusColor: Colors.orange[200],
                           decoration: const InputDecoration(
                             hintText: 'Select Role',
                             prefixIcon: Icon(Icons.person_search),
@@ -268,14 +271,11 @@ class _RegistrationState extends State<Registration> {
                               : null,
                         ),
                         const SizedBox(height: 8),
-                        // --- This is the key widget ---
                         TextFormField(
                           controller: _locationController,
-                          // The user can type here freely.
                           decoration: InputDecoration(
                             hintText: "Your Locality/Area",
                             prefixIcon: const Icon(Icons.location_city),
-                            // The button is just an optional helper.
                             suffixIcon: _isFetchingLocation
                                 ? const Padding(
                                     padding: EdgeInsets.all(10.0),
