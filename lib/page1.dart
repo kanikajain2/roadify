@@ -15,7 +15,7 @@ class Page1 extends StatelessWidget {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                Image.asset("images/logo.png", height: 400),
+                Image.asset("assets/images/logo.png", height: 400),
 
                 SizedBox(height: 5),
 
